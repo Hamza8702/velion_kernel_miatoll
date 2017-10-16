@@ -4792,102 +4792,132 @@ static u32 sk_skb_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
-const struct bpf_verifier_ops sk_filter_prog_ops = {
+const struct bpf_verifier_ops sk_filter_verifier_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 };
 
-const struct bpf_verifier_ops tc_cls_act_prog_ops = {
+const struct bpf_prog_ops sk_filter_prog_ops = {
+};
+
+const struct bpf_verifier_ops tc_cls_act_verifier_ops = {
 	.get_func_proto		= tc_cls_act_func_proto,
 	.is_valid_access	= tc_cls_act_is_valid_access,
 	.convert_ctx_access	= tc_cls_act_convert_ctx_access,
 	.gen_prologue		= tc_cls_act_prologue,
+};
+
+const struct bpf_prog_ops tc_cls_act_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops xdp_prog_ops = {
+const struct bpf_verifier_ops xdp_verifier_ops = {
 	.get_func_proto		= xdp_func_proto,
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
+};
+
+const struct bpf_prog_ops xdp_prog_ops = {
 	.test_run		= bpf_prog_test_run_xdp,
 };
 
-const struct bpf_verifier_ops cg_skb_prog_ops = {
+const struct bpf_verifier_ops cg_skb_verifier_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops cg_skb_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops lwt_inout_prog_ops = {
+const struct bpf_verifier_ops lwt_inout_verifier_ops = {
 	.get_func_proto		= lwt_inout_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
+};
+
+const struct bpf_prog_ops lwt_inout_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops lwt_xmit_prog_ops = {
+const struct bpf_verifier_ops lwt_xmit_verifier_ops = {
 	.get_func_proto		= lwt_xmit_func_proto,
 	.is_valid_access	= lwt_is_valid_access,
 	.convert_ctx_access	= bpf_convert_ctx_access,
 	.gen_prologue		= tc_cls_act_prologue,
+};
+
+const struct bpf_prog_ops lwt_xmit_prog_ops = {
 	.test_run		= bpf_prog_test_run_skb,
 };
 
-const struct bpf_verifier_ops cg_sock_prog_ops = {
+const struct bpf_verifier_ops cg_sock_verifier_ops = {
 	.get_func_proto		= sock_filter_func_proto,
 	.is_valid_access	= sock_filter_is_valid_access,
 	.convert_ctx_access	= sock_filter_convert_ctx_access,
 };
 
-const struct bpf_verifier_ops cg_sock_addr_prog_ops = {
+const struct bpf_prog_ops cg_sock_prog_ops = {
+};
+
+const struct bpf_verifier_ops cg_sock_addr_verifier_ops = {
 	.get_func_proto		= sock_addr_func_proto,
 	.is_valid_access	= sock_addr_is_valid_access,
 	.convert_ctx_access	= sock_addr_convert_ctx_access,
 };
 
-const struct bpf_verifier_ops sock_ops_prog_ops = {
+const struct bpf_prog_ops cg_sock_addr_prog_ops = {
+};
+
+const struct bpf_verifier_ops sock_ops_verifier_ops = {
 	.get_func_proto		= sock_ops_func_proto,
 	.is_valid_access	= sock_ops_is_valid_access,
 	.convert_ctx_access	= sock_ops_convert_ctx_access,
 };
 
-const struct bpf_verifier_ops sk_skb_prog_ops = {
-	.get_func_proto		= sk_skb_func_proto,
-	.is_valid_access	= sk_skb_is_valid_access,
-	.convert_ctx_access	= sk_skb_convert_ctx_access,
-	.gen_prologue		= sk_skb_prologue,
+const struct bpf_prog_ops sock_ops_prog_ops = {
+};
+
+const struct bpf_verifier_ops sk_skb_verifier_ops = {
+    .get_func_proto      = sk_skb_func_proto,
+    .is_valid_access     = sk_skb_is_valid_access,
+    .convert_ctx_access  = sk_skb_convert_ctx_access,
+    .gen_prologue        = sk_skb_prologue,
 };
 
 #ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_FOR_BPF
 static const struct bpf_func_proto *
 dummy_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
-	return bpf_base_func_proto(func_id);
+    return bpf_base_func_proto(func_id);
 }
 
 static bool dummy_is_valid_access(int off, int size,
-				  enum bpf_access_type type,
-				  const struct bpf_prog *prog,
-				  struct bpf_insn_access_aux *info)
+                                  enum bpf_access_type type,
+                                  const struct bpf_prog *prog,
+                                  struct bpf_insn_access_aux *info)
 {
-	return true;
+    return true;
 }
 
 static int dummy_prologue(struct bpf_insn *insn_buf, bool direct_write,
-			  const struct bpf_prog *prog)
+                          const struct bpf_prog *prog)
 {
-	return bpf_unclone_prologue(insn_buf, direct_write, prog, SK_DROP);
+    return bpf_unclone_prologue(insn_buf, direct_write, prog, SK_DROP);
 }
 
 const struct bpf_verifier_ops dummy_prog_ops = {
-	.get_func_proto		= dummy_func_proto,
-	.is_valid_access	= dummy_is_valid_access,
-	.convert_ctx_access	= bpf_convert_ctx_access,
-	.gen_prologue		= dummy_prologue,
+    .get_func_proto      = dummy_func_proto,
+    .is_valid_access     = dummy_is_valid_access,
+    .convert_ctx_access  = bpf_convert_ctx_access,
+    .gen_prologue        = dummy_prologue,
 };
 #endif
+
+const struct bpf_prog_ops sk_skb_prog_ops = {
+};
 
 int sk_detach_filter(struct sock *sk)
 {
