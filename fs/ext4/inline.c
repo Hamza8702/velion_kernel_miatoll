@@ -1689,7 +1689,7 @@ struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 	void *inline_start;
 	int inline_size;
 
-	ret = ext4_get_inode_loc(dir, &is.iloc);
+	ret = ext4_get_inode_loc(dir, &iloc);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -1726,11 +1726,11 @@ struct buffer_head *ext4_find_inline_entry(struct inode *dir,
 		goto out_find;
 
 out:
-	brelse(is.iloc.bh);
+	brelse(iloc.bh);
 	if (ret < 0)
-		is.iloc.bh = ERR_PTR(ret);
+		iloc.bh = ERR_PTR(ret);
 	else
-		is.iloc.bh = NULL;
+		iloc.bh = NULL;
 out_find:
 	up_read(&EXT4_I(dir)->xattr_sem);
 	return is.iloc.bh;
