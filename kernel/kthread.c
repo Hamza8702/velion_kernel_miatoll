@@ -678,6 +678,11 @@ repeat:
 		__set_current_state(TASK_RUNNING);
 		trace_sched_kthread_work_execute_start(work);
 		work->func(work);
+		/*
+		 * Avoid dereferencing work after this point.  The trace
+		 * event only cares about the address.
+		 */
+		trace_sched_kthread_work_execute_end(work, func);
 	} else if (!freezing(current)) {
 		schedule();
 	} else {
