@@ -88,7 +88,7 @@ static inline struct schedtune *parent_st(struct schedtune *st)
  * to tasks which are not into a child control group.
  */
 static struct schedtune root_schedtune = {
-	.boost = 0,
+	.boost = 1,
 #ifdef CONFIG_SCHED_WALT
 	.sched_boost_no_override = false,
 	.sched_boost_enabled = true,
@@ -777,9 +777,9 @@ static void write_default_values(struct cgroup_subsys_state *css)
 	static struct st_data st_targets[] = {
 		{ "audio-app",	0, 0, 0, 0 },
 		{ "background",	0, 0, 0, 0 },
-		{ "foreground",	0, 0, 0, 1 },
+		{ "foreground",	0, 1, 0, 1 },
 		{ "rt",		0, 0, 0, 0 },
-		{ "top-app",	1, 0, 0, 1 },
+		{ "top-app",	5, 1, 1, 1 },
 	};
 	int i;
 
