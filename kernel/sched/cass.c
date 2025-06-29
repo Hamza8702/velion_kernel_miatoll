@@ -30,6 +30,11 @@ struct cass_cpu_cand {
 	unsigned int exit_lat;
 	unsigned long cap;
 	unsigned long util;
+	/* --- MODIFICATION START: Add field for BORE integration --- */
+#ifdef CONFIG_SCHED_BORE
+	u64 min_vruntime;
+#endif
+	/* --- MODIFICATION END --- */
 };
 
 static __always_inline
@@ -96,6 +101,20 @@ bool cass_cpu_better(const struct cass_cpu_cand *a,
 		     cpus_share_cache(b->cpu, prev_cpu)))
 		goto done;
 
+	/* --- MODIFICATION START: Add BORE tie-breaker --- */
+#ifdef CONFIG_SCHED_BORE
+	/*
+	 * BORE-AWARE TIE-BREAKER:
+	 * If all CASS criteria are tied, use 'min_vruntime'.
+	 * Prioritize CPU with less scheduling "debt".
+	 */
+	if (res == 0) {
+		if (cass_cmp(b->min_vruntime, a->min_vruntime))
+			goto done;
+	}
+#endif
+	/* --- MODIFICATION END --- */
+
 	/* @a isn't a better CPU than @b. @res must be <=0 to indicate such. */
 done:
 	/* @a is a better CPU than @b if @res is positive */
@@ -123,6 +142,9 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync)
 	for_each_cpu_and(cpu, &p->cpus_allowed, cpu_active_mask) {
 		/* Use the free candidate slot */
 		struct rq *rq = cpu_rq(cpu);
+		/* --- MODIFICATION START: Get cfs_rq for BORE --- */
+		struct cfs_rq *cfs_rq = &rq->cfs;
+		/* --- MODIFICATION END --- */
 		curr = &cands[cidx];
 		curr->cpu = cpu;
 
@@ -172,6 +194,13 @@ static int cass_best_cpu(struct task_struct *p, int prev_cpu, bool sync)
 
 		/* Calculate the relative utilization for this CPU candidate */
 		curr->util = curr->util * SCHED_CAPACITY_SCALE / curr->cap;
+
+		/* --- MODIFICATION START: Fill BORE data --- */
+#ifdef CONFIG_SCHED_BORE
+		/* Save min_vruntime for tie-breaker use */
+		curr->min_vruntime = cfs_rq->min_vruntime;
+#endif
+		/* --- MODIFICATION END --- */
 
 		/*
 		 * Check if this CPU is better than the best CPU found so far.
