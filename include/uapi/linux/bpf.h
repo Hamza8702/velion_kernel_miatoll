@@ -156,9 +156,7 @@ enum bpf_prog_type {
         BPF_PROG_TYPE_CGROUP_SYSCTL = 23,
         BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE = 24,
         BPF_PROG_TYPE_CGROUP_SOCKOPT = 25,
-#ifdef CONFIG_ANDROID_SPOOF_KERNEL_VERSION_for_BPF
         BPF_PROG_TYPE_DUMMY = 255,
-#endif
 };
 
 enum bpf_attach_type {

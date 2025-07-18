@@ -216,10 +216,20 @@ static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
 static inline void __bpf_spin_lock(struct bpf_spin_lock *lock)
 {
 	atomic_t *l = (void *)lock;
+
 	BUILD_BUG_ON(sizeof(*l) != sizeof(*lock));
-	do {
-		atomic_cond_read_relaxed(l, !VAL);
-	} while (atomic_xchg(l, 1));
+
+	/* This is a standard test-and-test-and-set spinlock implementation */
+	while (atomic_xchg(l, 1) != 0) {
+		while (atomic_read(l) != 0) {
+			/*
+			 * Hint to the CPU that we are spinning.
+			 * This can save power and improve performance
+			 * on hyper-threaded systems.
+			 */
+			cpu_relax();
+		}
+	}
 }
 
 static inline void __bpf_spin_unlock(struct bpf_spin_lock *lock)
