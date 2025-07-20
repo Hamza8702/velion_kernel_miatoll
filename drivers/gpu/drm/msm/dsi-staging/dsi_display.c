@@ -6610,61 +6610,14 @@ error:
 }
 
 int dsi_display_validate_mode(struct dsi_display *display,
-			      struct dsi_display_mode *mode,
-			      u32 flags)
+                              struct dsi_display_mode *mode,
+                              u32 flags)
 {
-	int rc = 0;
-	int i;
-	struct dsi_display_ctrl *ctrl;
-	struct dsi_display_mode adj_mode;
-
-	if (!display || !mode) {
-		pr_err("Invalid params\n");
-		return -EINVAL;
-	}
-
-	mutex_lock(&display->display_lock);
-
-	adj_mode = *mode;
-	adjust_timing_by_ctrl_count(display, &adj_mode);
-
-	rc = dsi_panel_validate_mode(display->panel, &adj_mode);
-	if (rc) {
-		pr_err("[%s] panel mode validation failed, rc=%d\n",
-		       display->name, rc);
-		goto error;
-	}
-
-	display_for_each_ctrl(i, display) {
-		ctrl = &display->ctrl[i];
-		rc = dsi_ctrl_validate_timing(ctrl->ctrl, &adj_mode.timing);
-		if (rc) {
-			pr_err("[%s] ctrl mode validation failed, rc=%d\n",
-			       display->name, rc);
-			goto error;
-		}
-
-		rc = dsi_phy_validate_mode(ctrl->phy, &adj_mode.timing);
-		if (rc) {
-			pr_err("[%s] phy mode validation failed, rc=%d\n",
-			       display->name, rc);
-			goto error;
-		}
-	}
-
-	if ((flags & DSI_VALIDATE_FLAG_ALLOW_ADJUST) &&
-			(mode->dsi_mode_flags & DSI_MODE_FLAG_SEAMLESS)) {
-		rc = dsi_display_validate_mode_seamless(display, mode);
-		if (rc) {
-			pr_err("[%s] seamless not possible rc=%d\n",
-				display->name, rc);
-			goto error;
-		}
-	}
-
-error:
-	mutex_unlock(&display->display_lock);
-	return rc;
+    /*
+     * WORKAROUND: Bypass all display mode validation (panel, ctrl, phy)
+     * to accept user-defined modes from sysfs/userspace.
+     */
+    return 0;
 }
 
 int dsi_display_set_mode(struct dsi_display *display,
