@@ -681,18 +681,9 @@ int dsi_phy_clk_cb_register(struct msm_dsi_phy *dsi_phy,
  * Return: error code.
  */
 int dsi_phy_validate_mode(struct msm_dsi_phy *dsi_phy,
-			  struct dsi_mode_info *mode)
+                          struct dsi_mode_info *mode)
 {
-	int rc = 0;
-
-	if (!dsi_phy || !mode) {
-		pr_err("Invalid params\n");
-		return -EINVAL;
-	}
-
-	pr_debug("[PHY_%d] Skipping validation\n", dsi_phy->index);
-
-	return rc;
+    return 0;
 }
 
 /**

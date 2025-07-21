@@ -3002,17 +3002,15 @@ error:
  *
  * Return: error code if timing is not supported.
  */
-int dsi_ctrl_validate_timing(struct dsi_ctrl *dsi_ctrl,
-			     struct dsi_mode_info *mode)
+int dsi_display_validate_mode(struct dsi_display *display,
+                              struct dsi_display_mode *mode,
+                              u32 flags)
 {
-	int rc = 0;
-
-	if (!dsi_ctrl || !mode) {
-		pr_err("Invalid params\n");
-		return -EINVAL;
-	}
-
-	return rc;
+    /*
+     * WORKAROUND: Bypass all display mode validation (panel, ctrl, phy)
+     * to accept user-defined modes from sysfs/userspace.
+     */
+    return 0;
 }
 
 /**
