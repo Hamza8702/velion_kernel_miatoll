@@ -71,7 +71,7 @@ jobs:
           mkdir -p out
           
           # Configure
-          make O=out ARCH=arm64 vendor/xiaomi/atoll_defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/atol_defconfig
           
           # Compile
           make -j$(nproc --all) O=out \
