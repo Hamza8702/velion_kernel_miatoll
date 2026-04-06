@@ -55,7 +55,7 @@ jobs:
           mkdir -p out
           
           # Config
-          make O=out ARCH=arm64 vendor/xiaomi/atol_defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig
           
           # Build execution with Clang + GCC Cross Compilers
           make -j$(nproc --all) O=out \
