@@ -1,4 +1,4 @@
-name: Velion Kernel Build (Proton Clang)
+name: (Proton Clang)
 
 on:
   workflow_dispatch:
