@@ -1,0 +1,100 @@
+name: Velion Kernel Build (Proton Clang + Ccache)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - V2
+
+jobs:
+  build_kernel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          ref: V2
+          fetch-depth: 1
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential flex bison lld libssl-dev libelf-dev libncurses-dev git-core curl xz-utils python3 zip ccache
+
+      - name: Setup Ccache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.ccache
+          key: kernel-ccache-${{ github.sha }}
+          restore-keys: |
+            kernel-ccache-
+
+      - name: Setup Proton Clang
+        run: |
+          mkdir clang
+          cd clang
+          curl -LO https://github.com/kdrag0n/proton-clang/archive/refs/heads/master.tar.gz
+          tar -xf master.tar.gz --strip-components=1
+          # Add Proton Clang bin to PATH
+          echo "$(pwd)/bin" >> $GITHUB_PATH
+
+      - name: Build Kernel
+        run: |
+          # Architecture setup
+          export ARCH=arm64
+          export SUBARCH=arm64
+          
+          # Use System GCC for Host Tools to fix libc incompatibility
+          export HOSTCC=gcc
+          export HOSTCXX=g++
+          export HOSTLD=ld
+          
+          # Target Compiler (Proton Clang)
+          export CC="ccache clang"
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          export CROSS_COMPILE=aarch64-linux-gnu-
+          export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+          
+          # Ccache Configuration
+          export CCACHE_DIR=/home/runner/.ccache
+          export CCACHE_MAXSIZE=2G
+          ccache -s
+          
+          # Prepare output directory
+          mkdir -p out
+
+          # Set Defconfig
+          make O=out vendor/xiaomi/atoll_defconfig
+
+          # Main Build Command
+          make -j$(nproc --all) O=out \
+              ARCH=$ARCH \
+              CC="$CC" \
+              HOSTCC=$HOSTCC \
+              HOSTCXX=$HOSTCXX \
+              HOSTLD=$HOSTLD \
+              CLANG_TRIPLE=$CLANG_TRIPLE \
+              CROSS_COMPILE=$CROSS_COMPILE \
+              CROSS_COMPILE_ARM32=$CROSS_COMPILE_ARM32 \
+              LLVM=1 \
+              LLVM_IAS=1 \
+              LD=ld.lld \
+              AR=llvm-ar \
+              NM=llvm-nm \
+              OBJCOPY=llvm-objcopy \
+              OBJDUMP=llvm-objdump \
+              STRIP=llvm-strip
+
+          ccache -s
+
+      - name: Package Entire Boot Directory
+        run: |
+          # Zipping all files inside the boot directory for EFI/KVM use
+          cd out/arch/arm64/boot
+          zip -r ../../../../Velion_Boot_All_Files.zip ./*
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Velion-Kernel-Boot-Contents
+          path: Velion_Boot_All_Files.zip
