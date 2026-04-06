@@ -1,0 +1,101 @@
+name: Velion Kernel Build (Legacy Clang + GCC)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - V2
+
+jobs:
+  build_kernel:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          ref: V2
+          fetch-depth: 1
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc build-essential flex bison lld libssl-dev libelf-dev libncurses-dev git-core curl xz-utils python3 zip ccache libssl-dev
+
+      - name: Setup Ccache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.ccache
+          key: kernel-ccache-${{ github.sha }}
+          restore-keys: |
+            kernel-ccache-
+
+      - name: Clone Toolchains
+        run: |
+          # Clang from your script
+          git clone --depth=1 https://github.com/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-6443078 clang
+          # GCC 64-bit from your script
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 gcc64
+          # GCC 32-bit from your script
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 gcc32
+
+      - name: Build Kernel
+        run: |
+          # Environment Setup
+          export ARCH=arm64
+          export USE_CCACHE=1
+          export CCACHE_DIR=/home/runner/.ccache
+          ccache -M 25G
+          
+          # POLLY FIX: Remove incompatible Polly/LLVM flags for Clang 6443078
+          echo "Cleaning up incompatible Polly flags..."
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-loopfusion-greedy=1//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-reschedule=1//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-postopts=1//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-run-inliner//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-ast-use-context//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-detect-keep-going//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-invariant-load-hoisting//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-vectorizer=stripmine//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-run-dce//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-num-threads=0//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-omp-backend=LLVM//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-scheduling=dynamic//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-polly-scheduling-chunksize=1//g' || true
+          find . -type f -name "Makefile*" -o -name "*.mk" | xargs sed -i 's/-mllvm -polly//g' || true
+
+          # Toolchain Paths
+          CLANG_BIN="${PWD}/clang/bin"
+          GCC64_BIN="${PWD}/gcc64/bin"
+          GCC32_BIN="${PWD}/gcc32/bin"
+          export PATH="${CLANG_BIN}:${GCC64_BIN}:${GCC32_BIN}:${PATH}"
+          
+          mkdir -p out
+          
+          # Configure miatoll_defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/atoll_defconfig
+          
+          # Compile Kernel
+          make -j$(nproc --all) O=out \
+              ARCH=arm64 \
+              CC="clang" \
+              CLANG_TRIPLE=aarch64-linux-gnu- \
+              CROSS_COMPILE="${GCC64_BIN}/aarch64-linux-android-" \
+              CROSS_COMPILE_ARM32="${GCC32_BIN}/arm-linux-androideabi-" \
+              LD=ld.lld \
+              CONFIG_NO_ERROR_ON_MISMATCH=y \
+              HOSTCC=gcc \
+              HOSTCXX=g++
+
+          ccache -s
+
+      - name: Create Flashable Zip
+        run: |
+          # Packaging boot contents (KVM/EFI compatible)
+          cd out/arch/arm64/boot
+          zip -r ../../../../Velion_Miatoll_Output.zip ./*
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Velion-Kernel-Miatoll
+          path: Velion_Miatoll_Output.zip
