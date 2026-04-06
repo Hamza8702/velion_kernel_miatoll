@@ -410,8 +410,8 @@ ENTRY(el2_setup)
 	 * x2 being non-zero indicates that we do have VHE, and that the
 	 * kernel is intended to run at EL2.
 	 */
-	mrs	x2, id_aa64mmfr1_el1
-	ubfx	x2, x2, #8, #4
+	// mrs     x2, id_aa64mmfr1_el1
+	mov     x2, #1
 #else
 	mov	x2, xzr
 #endif
