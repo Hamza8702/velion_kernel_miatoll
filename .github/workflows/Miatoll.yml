@@ -51,7 +51,6 @@ jobs:
 
       - name: Compile Kernel
         run: |
-          # Direkt olarak llvm araç isimlerini kullanarak derle
           make -j$(nproc --all) O=out \
             ARCH=arm64 \
             CC="ccache clang" \
@@ -66,7 +65,10 @@ jobs:
             STRIP=llvm-strip \
             LLVM=1 \
             LLVM_IAS=1 \
+            CONFIG_SPECTRE_BHB=n \
+            CONFIG_LTO_CLANG_NONE=y \
             CONFIG_NO_ERROR_ON_MISMATCH=y
+
 
       - name: Archive Results
         run: |
