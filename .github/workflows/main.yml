@@ -1,0 +1,63 @@
+name: Build Miatoll Kernel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  kernel-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc build-essential flex bison git-core libssl-dev \
+            libelf-dev clang llvm lld libncurses-dev \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            python3-minimal zip
+
+      - name: Setup Output Directory
+        run: mkdir -p out
+
+      - name: Configure Kernel (Defconfig)
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LLVM=1 \
+            vendor/xiaomi/miatoll_defconfig
+
+      - name: Compile Kernel
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LD=ld.lld \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            LLVM=1 \
+            CONFIG_NO_ERROR_ON_MISMATCH=y
+
+      - name: Compress Boot Directory
+        run: |
+          zip -r miatoll_boot_folder.zip out/arch/arm64/boot/
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Miatoll-Boot-Assets
+          path: miatoll_boot_folder.zip
