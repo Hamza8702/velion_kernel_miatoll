@@ -34,7 +34,7 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             LLVM=1 \
-            vendor/xiaomi/miatoll_defconfig
+            vendor/xiaomi/atoll_defconfig
 
       - name: Compile Kernel
         run: |
