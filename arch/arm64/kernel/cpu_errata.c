@@ -328,3 +328,8 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 {
 	return sprintf(buf, "Mitigation: VHE forced / KVM enabled\n");
 }
+
+bool is_spectre_bhb_affected(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return false;
+}
