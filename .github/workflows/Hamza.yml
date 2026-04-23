@@ -1,4 +1,4 @@
-name: Build Miatoll kvm Kernel
+name: yanlış Build Miatoll kvm Kernel
 
 on:
   workflow_dispatch:
