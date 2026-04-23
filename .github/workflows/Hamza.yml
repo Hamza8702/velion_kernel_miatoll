@@ -1,4 +1,4 @@
-name: Build Miatoll Kernel
+name: Build Miatoll kvm Kernel
 
 on:
   workflow_dispatch:
@@ -84,4 +84,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Miatoll-Kernel-Package
-          path: miatoll_boot_assets.zip
+          path: miatoll_kvm-boot.zip
