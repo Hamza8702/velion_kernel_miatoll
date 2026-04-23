@@ -1,4 +1,4 @@
-name: Build Miatoll Kernel
+name: Build Miatoll kvm Kernel
 
 on:
   workflow_dispatch:
@@ -47,7 +47,7 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             LLVM=1 \
             LLVM_IAS=1 \
-            vendor/xiaomi/atoll_defconfig
+            vendor/xiaomi/atoll_defconfig efi.config
 
       - name: Compile Kernel
         run: |
@@ -78,4 +78,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Miatoll-Kernel-Package
-          path: miatoll_boot_assets.zip
+          path: miatoll_boot_kvm.zip
