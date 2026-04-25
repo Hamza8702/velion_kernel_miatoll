@@ -47,7 +47,13 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             LLVM=1 \
             LLVM_IAS=1 \
-            vendor/xiaomi/atoll_defconfig efi.config
+            vendor/xiaomi/atoll_defconfig
+            
+          # 2. Inject HyperOS & KVM Configurations
+          ./scripts/config --file out/.config -e KVM
+          ./scripts/config --file out/.config -e VIRTUALIZATION
+          ./scripts/config --file out/.config -e KVM_ARM_HOST
+          ./scripts/config --file out/.config -e KVM_ARM_PMU
 
       - name: Compile Kernel
         run: |
