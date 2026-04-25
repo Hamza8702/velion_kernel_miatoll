@@ -1,80 +1,123 @@
-name: yanlış Build Miatoll kvm Kernel
+name: Miatoll Kernel Build (KVM + LLVM)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  kernel-build:
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Install Dependencies
+      - name: Install Build Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            bc build-essential flex bison git-core libssl-dev \
-            libelf-dev clang-17 llvm-17 lld-17 libncurses-dev \
-            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
-            python3-minimal zip ccache
+          sudo apt-get install -y bc build-essential flex bison lld llvm libssl-dev libelf-dev \
+          cpio wget curl git zip unzip tar clang lld ccache pahole
 
-      - name: Set Toolchain Alternatives
-        run: |
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-17 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/lld-17 100
-          sudo update-alternatives --install /usr/bin/llvm-nm llvm-nm /usr/bin/llvm-17-nm 100
-          sudo update-alternatives --install /usr/bin/llvm-objcopy llvm-objcopy /usr/get/bin/llvm-17-objcopy 100
-          sudo update-alternatives --install /usr/bin/llvm-objdump llvm-objdump /usr/bin/llvm-17-objdump 100
-          sudo update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-17-strip 100
-          sudo update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-17-ar 100
-
-      - name: Cache Setup
+      - name: Setup ccache
         uses: actions/cache@v4
         with:
           path: /home/runner/.cache/ccache
-          key: ${{ runner.os }}-kernel-ccache-${{ github.sha }}
+          key: kernel-22.04-ccache-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-kernel-ccache-
+            kernel-22.04-ccache-
 
-      - name: Prepare Environment
+      - name: Setup Toolchains
         run: |
-          mkdir -p out
-          ccache -M 5G
+          # Using Proton Clang - Reliable and self-contained LLVM suite
+          git clone --depth=1 https://github.com/kdrag0n/proton-clang.git clang
+          
+          # GCC Toolchains for auxiliary compilation tasks
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 gcc64
+          git clone --depth=1 https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 gcc32
 
-      - name: Configure Kernel
+      - name: Build Kernel
         run: |
+          # Fix "Argument list too long" by raising stack limits
+          ulimit -s unlimited
+          
+          # Environment Variables for Cross-Compilation
+          export ARCH=arm64
+          export SUBARCH=arm64
+          export KBUILD_BUILD_HOST=ubuntu-22-04-actions
+          export KBUILD_BUILD_USER="Hamza"
+          
+          # Setup Toolchain Paths
+          CLANG_DIR="${PWD}/clang"
+          GCC64_DIR="${PWD}/gcc64"
+          GCC32_DIR="${PWD}/gcc32"
+          export PATH="${CLANG_DIR}/bin:${GCC64_DIR}/bin:${GCC32_DIR}/bin:${PATH}"
+          
+          # 1. Initialize Defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig
+          
+          # 2. Inject HyperOS & KVM Configurations
+          ./scripts/config --file out/.config -e KVM
+          ./scripts/config --file out/.config -e VIRTUALIZATION
+          ./scripts/config --file out/.config -e KVM_ARM_HOST
+          ./scripts/config --file out/.config -e KVM_ARM_PMU
+          
+          # Fix for Wi-Fi driver build error (Make it built-in)
+          ./scripts/config --file out/.config -e QCA_CLD_WLAN
+          
+          # Sync and update configuration
+          make O=out ARCH=arm64 olddefconfig
+      - name: Fix Polly Arguments
+        run: |
+          sed -i 's/-polly-loopfusion-greedy=1//g' Makefile arch/arm64/Makefile || true
+          sed -i 's/-polly-reschedule=1//g' Makefile arch/arm64/Makefile || true
+          sed -i 's/-polly-postopts=1//g' Makefile arch/arm64/Makefile || true
+
+          # 3. Start Compilation with full LLVM Toolset
+          # We use LD=ld.lld to fix "Illegal option -L" and vdso errors
           make -j$(nproc --all) O=out \
             ARCH=arm64 \
-            CC="ccache clang" \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             LLVM=1 \
-            vendor/xiaomi/atoll_defconfig efi.config
-            
-            make -j$(nproc --all) O=out olddefconfig
-
-      - name: Compile Kernel
-        run: |
-          make -j$(nproc --all) O=out \
-            ARCH=arm64 \
-            CC="ccache clang" \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LLVM_IAS=1 \
+            CC=clang \
             LD=ld.lld \
             AR=llvm-ar \
             NM=llvm-nm \
             OBJCOPY=llvm-objcopy \
             OBJDUMP=llvm-objdump \
             STRIP=llvm-strip \
-            LLVM=1 \
-            LLVM_IAS=1 \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            KBUILD_COMPILER_STRING="Proton-Clang-13" \
             CONFIG_NO_ERROR_ON_MISMATCH=y
+
+          
+          # Show ccache statistics
+          ccache -s
+
+      - name: Package with AnyKernel3
+        run: |
+          # Create a directory for the flashable zip
+          git clone --depth=1 https://github.com/osm0sis/AnyKernel3 AnyKernel
+          
+          # Check if the kernel image was built successfully
+          if [ -f out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp out/arch/arm64/boot/Image.gz-dtb AnyKernel/
+          elif [ -f out/arch/arm64/boot/Image ]; then
+            cp out/arch/arm64/boot/Image AnyKernel/
+          else
+            echo "Error: Kernel image not found! Build might have failed."
+            exit 1
+          fi
+
+          # Create the zip file
+          cd AnyKernel
+          zip -r9 "../Miatoll-HyperOS-KVM-$(date +%Y%m%d-%H%M).zip" * -x .git* README.md
+          cd ..
+
+      - name: Upload Kernel Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Miatoll-HyperOS-KVM-Kernel
+          path: "*.zip"
 
       - name: Archive Results
         run: |
