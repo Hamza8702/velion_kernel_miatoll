@@ -51,7 +51,7 @@ jobs:
           export PATH="${CLANG_DIR}/bin:${GCC64_DIR}/bin:${GCC32_DIR}/bin:${PATH}"
           
           # 1. Initialize Defconfig
-          make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig
+          make O=out ARCH=arm64 vendor/xiaomi/atoll_defconfig
           
           # 2. Inject HyperOS & KVM Configurations
           ./scripts/config --file out/.config -e KVM
