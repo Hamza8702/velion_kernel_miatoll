@@ -85,3 +85,22 @@ jobs:
         with:
           name: Miatoll-Kernel-Package
           path: miatoll_boot_kvm.zip
+
+      - name: Anykernel3
+        run:  |
+          zimage=out/arch/arm64/boot/Image.gz
+          if ! [ -a $zimage ];
+          then
+          echo  " Failed To Compile Kernel"
+          else
+          echo -e " Kernel Compile Successful"
+          git clone --depth=1 https://github.com/Amritorock/AnyKernel3 -b r5x AnyKernel
+          cp out/arch/arm64/boot/Image.gz AnyKernel
+          cd AnyKernel
+          zip -r9 Stormbreaker-miatoll-${TANGGAL}.zip *
+          cd ../
+          fi
+          }
+          compile
+          zupload
+
