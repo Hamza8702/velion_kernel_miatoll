@@ -33,7 +33,7 @@ jobs:
       - name: Prepare Environment
         run: |
           mkdir -p out
-          ccache -M 5G
+          ccache -M 25G
           # Force add LLVM 17 tools to system path
           echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
 
@@ -54,6 +54,8 @@ jobs:
           ./scripts/config --file out/.config -e VIRTUALIZATION
           ./scripts/config --file out/.config -e KVM_ARM_HOST
           ./scripts/config --file out/.config -e KVM_ARM_PMU
+          ./scripts/config --file out/.config -e VIRT_ARM64_HW
+          ./scripts/config --file out/.config -e Gunyah
 
       - name: Compile Kernel
         run: |
