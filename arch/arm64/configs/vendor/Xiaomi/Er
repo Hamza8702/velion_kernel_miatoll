@@ -1,0 +1,9 @@
+root@localhost:~/velion_kernel_xiaomi_sm6250-2# grep "CONFIG_KVM" out/.config
+CONFIG_KVM_MMIO=y
+CONFIG_KVM_VFIO=y
+CONFIG_KVM_GENERIC_DIRTYLOG_READ_PROTECT=y
+CONFIG_KVM_COMPAT=y
+CONFIG_KVM=y
+CONFIG_KVM_ARM_HOST=y
+CONFIG_KVM_ARM_PMU=y
+root@localhost:~/velion_kernel_xiaomi_sm6250-2#
