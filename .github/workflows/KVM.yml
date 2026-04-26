@@ -56,6 +56,8 @@ jobs:
           ./scripts/config --file out/.config -e KVM_ARM_PMU
           ./scripts/config --file out/.config -e VIRT_ARM64_HW
           ./scripts/config --file out/.config -e Gunyah
+          
+          make -j$(nproc --all) O=out ARCH=arm64 olddefconfig
 
       - name: Compile Kernel
         run: |
