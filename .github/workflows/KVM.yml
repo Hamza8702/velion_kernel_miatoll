@@ -1,0 +1,111 @@
+name: Build Miatoll KVM komple
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc build-essential flex bison git-core libssl-dev \
+            libelf-dev clang-17 llvm-17 lld-17 libncurses-dev \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            python3-minimal zip ccache
+
+      - name: Cache Setup
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: ${{ runner.os }}-kernel-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-ccache-
+
+      - name: Prepare Environment
+        run: |
+          mkdir -p out
+          ccache -M 5G
+          # Force add LLVM 17 tools to system path
+          echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
+
+      - name: Configure Kernel
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            vendor/xiaomi/atoll_defconfig
+            
+          # Inject KVM & Virtualization Configurations
+          ./scripts/config --file out/.config -e KVM
+          ./scripts/config --file out/.config -e VIRTUALIZATION
+          ./scripts/config --file out/.config -e KVM_ARM_HOST
+          ./scripts/config --file out/.config -e KVM_ARM_PMU
+
+      - name: Compile Kernel
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LD=ld.lld \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            CONFIG_SPECTRE_BHB=n \
+            CONFIG_LTO_CLANG_NONE=y \
+            CONFIG_NO_ERROR_ON_MISMATCH=y
+
+      - name: Archive Full Boot Folder
+        run: |
+          # Compress the entire boot directory containing Image, Image.gz, and DTBs
+          zip -r9 boot_folder_assets.zip out/arch/arm64/boot/*
+
+      - name: Package with AnyKernel3
+        run:  |
+          zimage=out/arch/arm64/boot/Image.gz
+          TIMESTAMP=$(date +"%Y%m%d-%H%M")
+          
+          if [ ! -f "$zimage" ]; then
+            echo "Error: Kernel Image.gz not found. Compilation failed!"
+            exit 1
+          else
+            echo "Kernel compiled successfully. Preparing AnyKernel3 package..."
+            git clone --depth=1 https://github.com/Amritorock/AnyKernel3 -b r5x AnyKernel
+            cp out/arch/arm64/boot/Image.gz AnyKernel/
+            cd AnyKernel
+            zip -r9 ../Stormbreaker-miatoll-KVM-${TIMESTAMP}.zip *
+            cd ../
+            echo "AnyKernel package created."
+          fi
+
+      - name: Upload Flashable Kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Miatoll-KVM-Kernel-Flashable
+          path: Stormbreaker-miatoll-KVM-*.zip
+
+      - name: Upload Full Boot Folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: Miatoll-Boot-Folder-Complete
+          path: boot_folder_assets.zip
