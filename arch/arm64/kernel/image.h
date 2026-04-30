@@ -97,6 +97,10 @@ __efistub_strlen		= __pi_strlen;
 __efistub_strnlen		= __pi_strnlen;
 __efistub_strcmp		= __pi_strcmp;
 __efistub_strncmp		= __pi_strncmp;
+__efistub_strrchr = strrchr; 
+__efistub_fdt_subnode_offset_namelen = fdt_subnode_offset_namelen; 
+__efistub_fdt_subnode_offset = fdt_subnode_offset; 
+__efistub_fdt_path_offset_namelen = fdt_path_offset_namelen;
 __efistub___flush_dcache_area	= __pi___flush_dcache_area;
 
 #ifdef CONFIG_KASAN
