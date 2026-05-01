@@ -1,0 +1,112 @@
+name: Build Miatoll KVM UEFI-Ready
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc build-essential flex bison git-core libssl-dev \
+            libelf-dev clang-17 llvm-17 lld-17 libncurses-dev \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            python3-minimal zip ccache xxd
+
+      - name: Cache Setup
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cache/ccache
+          key: ${{ runner.os }}-kernel-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-ccache-
+
+      - name: Prepare Environment
+        run: |
+          mkdir -p out
+          ccache -M 25G
+          echo "/usr/lib/llvm-17/bin" >> $GITHUB_PATH
+
+      - name: Configure Kernel
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            vendor/Xiaomi/atol_defconfig
+            
+          # --- KVM & Virtualization Settings ---
+          ./scripts/config --file out/.config -e KVM
+          ./scripts/config --file out/.config -e VIRTUALIZATION
+          ./scripts/config --file out/.config -e KVM_ARM_HOST
+          ./scripts/config --file out/.config -e KVM_ARM_PMU
+          ./scripts/config --file out/.config -e VIRT_ARM64_HW
+          
+          # --- UEFI & EFI Stub Settings (Critical for UEFI Boot) ---
+          ./scripts/config --file out/.config -e EFI
+          ./scripts/config --file out/.config -e EFI_STUB
+          ./scripts/config --file out/.config -e EFI_GENERIC_STUB
+          ./scripts/config --file out/.config -e EFI_PARAMS
+          ./scripts/config --file out/.config -e EFI_RUNTIME_WRAPPERS
+          
+          # --- Relocation Settings (Allows UEFI to load kernel at any RAM address) ---
+          ./scripts/config --file out/.config -e RELOCATABLE
+          ./scripts/config --file out/.config -e RANDOMIZE_BASE
+          ./scripts/config --file out/.config -e ARM64_VIRT_AND_HYP_TEXT
+          
+          # --- Clean Up Overrides ---
+          ./scripts/config --file out/.config -d CMDLINE_FORCE
+          
+          make -j$(nproc --all) O=out ARCH=arm64 olddefconfig
+
+      - name: Compile Kernel
+        run: |
+          make -j$(nproc --all) O=out \
+            ARCH=arm64 \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            LD=ld.lld \
+            AR=llvm-ar \
+            NM=llvm-nm \
+            OBJCOPY=llvm-objcopy \
+            OBJDUMP=llvm-objdump \
+            STRIP=llvm-strip \
+            LLVM=1 \
+            LLVM_IAS=1 \
+            CONFIG_LTO_CLANG_NONE=y
+
+      - name: Verify EFI Signature
+        run: |
+          echo "Checking for EFI Magic Number (MZ)..."
+          # If EFI Stub is enabled correctly, the Image file must start with 'MZ' (4d5a).
+          head -c 2 out/arch/arm64/boot/Image | xxd
+          grep -E "CONFIG_KVM|CONFIG_EFI_STUB|CONFIG_RELOCATABLE" out/.config
+
+      - name: Archive Boot Assets
+        run: |
+          zip -j miatoll-uefi-assets.zip \
+            out/arch/arm64/boot/Image \
+            out/arch/arm64/boot/Image.gz \
+            out/arch/arm64/boot/dts/vendor/Xiaomi/atoll.dtb \
+            out/.config
+
+      - name: Upload UEFI Assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: Miatoll-UEFI-Kernel-Assets
+          path: miatoll-uefi-assets.zip
