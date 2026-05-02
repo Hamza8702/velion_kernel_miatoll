@@ -46,7 +46,7 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             LLVM=1 \
             LLVM_IAS=1 \
-            vendor/Xiaomi/atol_defconfig
+            vendor/Xiaomi/atol_defconfig miatoll-linux.config
             
           # --- KVM & Virtualization Settings ---
           ./scripts/config --file out/.config -e KVM
